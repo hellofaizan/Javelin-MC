@@ -1,0 +1,8 @@
+name: Javelin
+version: '1.0-SNAPSHOT'
+main: me.hellofaizan.javelin.Javelin
+api-version: '1.21'
+load: STARTUP
+authors: [ HelloFaizan ]
+description: Javelin throw in Minecraft
+website: https://hellofaizan.me
