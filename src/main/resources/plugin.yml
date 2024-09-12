@@ -6,3 +6,8 @@ load: STARTUP
 authors: [ HelloFaizan ]
 description: Javelin throw in Minecraft
 website: https://hellofaizan.me
+commands:
+  javelinlb:
+    description: Display the Javelin throw leaderboard
+    usage: /javelinlb
+    aliases: [jlb, javelin, javelinleaderbaord]
