@@ -4,9 +4,7 @@ import com.destroystokyo.paper.event.player.PlayerLaunchProjectileEvent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextDecoration
-import org.bukkit.Bukkit
-import org.bukkit.Location
-import org.bukkit.World
+import org.bukkit.*
 import org.bukkit.entity.Trident
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -16,11 +14,13 @@ import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import org.bukkit.scheduler.BukkitRunnable
 import java.io.File
 import java.util.UUID
 import org.json.simple.JSONArray
 import org.json.simple.JSONObject
 import org.json.simple.parser.JSONParser
+import kotlin.math.sqrt
 
 class Javelin : JavaPlugin(), Listener, CommandExecutor {
 
@@ -89,6 +89,7 @@ class Javelin : JavaPlugin(), Listener, CommandExecutor {
                     .append(Component.text(formattedDistance, NamedTextColor.AQUA).decorate(TextDecoration.UNDERLINED))
                     .append(Component.text(" $distanceUnit"))
                 Bukkit.getServer().onlinePlayers.forEach { it.sendMessage(message) }
+                createTemporaryBeacon(hitLocation, shooter.name, distance, distance >= worldRecord)
             }
         }
     }
@@ -96,7 +97,7 @@ class Javelin : JavaPlugin(), Listener, CommandExecutor {
     private fun calculate2DDistance(loc1: Location, loc2: Location): Double {
         val dx = loc1.x - loc2.x
         val dz = loc1.z - loc2.z
-        return Math.sqrt(dx * dx + dz * dz)
+        return sqrt(dx * dx + dz * dz)
     }
 
     private fun updateLeaderboard(uuid: UUID, name: String, distance: Double) {
@@ -186,6 +187,55 @@ class Javelin : JavaPlugin(), Listener, CommandExecutor {
                     .append(Component.text(" ${Config.getUnitFromConfig()}"))
             )
         }
+    }
+
+    private fun createTemporaryBeacon(
+        location: Location,
+        throwerName: String,
+        distance: Double,
+        isWorldRecord: Boolean
+    ) {
+        object : BukkitRunnable() {
+            var duration = 10 // Duration in seconds
+
+            override fun run() {
+                if (duration <= 0) {
+                    this.cancel()
+                    return
+                }
+
+                // Create the beacon beam effect
+                val beaconColor = if (isWorldRecord) Color.YELLOW else Color.AQUA
+                val dustOptions = Particle.DustOptions(beaconColor, 1.5f)
+
+                // Create vertical beam by spawning particles from the ground up to 10 blocks
+                for (y in 0..10) {
+                    location.world.spawnParticle(
+                        Particle.DUST,
+                        location.clone().add(0.0, y.toDouble(), 0.0),
+                        10,  // number of particles
+                        0.2, 0.2, 0.2,  // spread in x, y, z directions
+                        dustOptions
+                    )
+                }
+
+                // Play a sound at the location
+                location.world.playSound(location, Sound.BLOCK_BEACON_AMBIENT, 1.0f, 1.0f)
+
+                // Optionally display some text/hologram near the beacon
+                val recordText = if (isWorldRecord) " §6§lNEW WORLD RECORD!" else ""
+                val infoText = "§e$throwerName §fthrew §b${
+                    String.format("%.2f", distance)
+                } §f${Config.getUnitFromConfig()}!$recordText"
+                for (player in location.world.players) {
+                    if (player.location.distance(location) <= 70) { // Only show to nearby players
+                        player.sendActionBar(Component.text(infoText, NamedTextColor.YELLOW))
+                    }
+                }
+
+                duration--
+            }
+        }.runTaskTimer(this, 0L, 20L) // Run every second
     }
 
     override fun onDisable() {
